@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>直播提词器系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #fff;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid #e94560;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .header h1 {
+            color: #e94560;
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            color: #8a8a9c;
+            font-size: 14px;
+        }
+        
+        .container {
+            display: flex;
+            height: calc(100vh - 80px);
+            padding: 15px;
+            gap: 15px;
+        }
+        
+        .soundboard {
+            width: 220px;
+            min-width: 180px;
+            background-color: rgba(22, 33, 62, 0.8);
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(5px);
+            border: 1px solid #37374e;
+        }
+        
+        .soundboard h2 {
+            text-align: center;
+            margin-bottom: 15px;
+            color: #e94560;
+            font-size: 18px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #37374e;
+        }
+        
+        .sound-buttons {
+            flex: 1;
+            overflow-y: auto;
+            display: grid;
+            gap: 10px;
+            padding-right: 5px;
+        }
+        
+        .sound-btn {
+            background: linear-gradient(145deg, #660ed7, #3d9fc5);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            min-height: 50px;
+            word-break: break-word;
+            position: relative;
+        }
+        
+        .sound-btn:hover {
+            background: linear-gradient(145deg, #ff5470, #e94560);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(233, 69, 96, 0.4);
+        }
+        
+        .sound-btn:active {
+            transform: translateY(0);
+        }
+        
+        .sound-btn.playing::after {
+            content: "▶";
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+        
+        .add-sound-btn {
+            background-color: #0f3460;
+            color: white;
+            border: 2px dashed #4a7bcc;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        
+        .add-sound-btn:hover {
+            background-color: #133b74;
+            border-color: #5e8ede;
+        }
+        
+        .teleprompter {
+            flex: 1;
+            min-width: 300px;
+            background-color: rgba(15, 52, 96, 0.8);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.35);
+            overflow: hidden;
+            backdrop-filter: blur(5px);
+            border: 1px solid #37374e;
+        }
+        
+        .teleprompter-content {
+            flex: 1;
+            padding: 25px;
+            font-size: 22px;
+            line-height: 1.6;
+            overflow-y: auto;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            margin: 15px;
+            color: #f0f0f0;
+            white-space: pre-wrap;
+            max-height: calc(100vh - 200px);
+            transition: all 0.3s;
+        }
+        
+        .teleprompter-controls {
+            padding: 12px;
+            background-color: rgba(22, 33, 62, 0.8);
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .control-btn {
+            background: linear-gradient(145deg, #e94560, #c53d54);
+            color: white;
+            border: none;
+            border-radius: 40px;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            min-width: 110px;
+            justify-content: center;
+        }
+        
+        .control-btn:hover {
+            background: linear-gradient(145deg, #ff5470, #e94560);
+            transform: translateY(-2px);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background-color: #16213e;
+            padding: 25px;
+            border-radius: 12px;
+            width: 420px;
+            max-width: 90%;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
+            border: 1px solid #37374e;
+        }
+        
+        .modal h3 {
+            margin-bottom: 15px;
+            color: #e94560;
+            text-align: center;
+            font-size: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+            color: #8a8a9c;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #0f3460;
+            background-color: #1a1a2e;
+            color: white;
+            transition: border 0.3s;
+        }
+        
+        .form-group input:focus {
+            border-color: #e94560;
+            outline: none;
+        }
+        
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        
+        .form-actions button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(145deg, #e94560, #c53d54);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(145deg, #ff5470, #e94560);
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        
+        .file-info {
+            margin-top: 6px;
+            font-size: 11px;
+            color: #8a8a9c;
+        }
+        
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #0f3460;
+            border-radius: 8px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #e94560;
+            border-radius: 8px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ff5470;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 1000px) {
+            .container {
+                flex-wrap: wrap;
+                height: auto;
+                min-height: calc(100vh - 80px);
+            }
+            
+            .soundboard {
+                width: calc(50% - 10px);
+                min-width: 0;
+                max-height: 250px;
+            }
+            
+            .teleprompter {
+                width: 100%;
+                order: -1;
+                margin-bottom: 15px;
+            }
+            
+            .sound-buttons {
+                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            }
+            
+            .teleprompter-content {
+                font-size: 20px;
+                padding: 20px;
+            }
+            
+            .control-btn {
+                min-width: 90px;
+                font-size: 13px;
+                padding: 6px 12px;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .soundboard {
+                width: 100%;
+                max-height: 200px;
+            }
+            
+            .header h1 {
+                font-size: 22px;
+            }
+            
+            .teleprompter-content {
+                font-size: 18px;
+                padding: 15px;
+            }
+            
+            .control-btn {
+                min-width: 70px;
+                font-size: 12px;
+                padding: 5px 10px;
+            }
+            
+            .modal-content {
+                padding: 20px;
+            }
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #e94560;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+            font-size: 14px;
+            text-align: center;
+            max-width: 80%;
+        }
+        
+        .notification.show {
+            opacity: 1;
+        }
+        
+        .scroll-controls {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            margin-top: 10px;
+        }
+        
+        .scroll-speed {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        
+        .scroll-speed label {
+            margin-right: 5px;
+            color: #8a8a9c;
+        }
+        
+        .scroll-speed input {
+            width: 60px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #37374e;
+            color: white;
+            border-radius: 4px;
+            padding: 3px 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>直播提词器系统</h1>
+        <p>编辑您的话术，添加音效，让直播更专业！</p>
+    </div>
+    
+    <div class="container">
+        <!-- 左侧音效区 -->
+        <div class="soundboard" id="left-soundboard">
+            <h2>左侧音效按钮</h2>
+            <div class="sound-buttons" id="left-sound-buttons">
+                <!-- 示例音效按钮 -->
+                <button class="sound-btn" data-audio="applause">掌声</button>
+                <button class="sound-btn" data-audio="ding">提示音</button>
+            </div>
+            <div class="add-sound-btn" onclick="openAddSoundModal('left')">
+                <span>+ 添加音效</span>
+            </div>
+        </div>
+        
+        <!-- 中央提词器 -->
+        <div class="teleprompter">
+            <div class="teleprompter-content" id="prompter-text" contenteditable="true">
+欢迎使用直播提词器！
+
+您可以在这里编辑您的直播话术。
+
+点击两侧的"添加音效"按钮可以上传并添加自定义音效按钮。
+
+您也可以直接修改这段文本内容，输入您的直播脚本。
+
+提示：
+- 长按音效按钮可以删除它
+- 点击下方按钮可以调整字体大小
+- 所有内容会自动保存
+            </div>
+            <div class="teleprompter-controls">
+                <button class="control-btn" onclick="changeFontSize('increase')">
+                    <span>放大字体</span>
+                </button>
+                <button class="control-btn" onclick="changeFontSize('decrease')">
+                    <span>缩小字体</span>
+                </button>
+                <button class="control-btn" onclick="resetContent()">
+                    <span>重置内容</span>
+                </button>
+                <button class="control-btn" onclick="toggleScroll()" id="scroll-toggle">
+                    <span>开启滚动</span>
+                </button>
+                <div class="scroll-speed">
+                    <label for="scroll-speed">速度:</label>
+                    <input type="number" id="scroll-speed" min="1" max="10" value="3">
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧音效区 -->
+        <div class="soundboard" id="right-soundboard">
+            <h2>右侧音效按钮</h2>
+            <div class="sound-buttons" id="right-sound-buttons">
+                <!-- 示例音效按钮 -->
+                <button class="sound-btn" data-audio="drumroll">鼓声</button>
+                <button class="sound-btn" data-audio="success">成功音效</button>
+            </div>
+            <div class="add-sound-btn" onclick="openAddSoundModal('right')">
+                <span>+ 添加音效</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加音效的模态框 -->
+    <div class="modal" id="add-sound-modal">
+        <div class="modal-content">
+            <h3>添加音效按钮</h3>
+            <div class="form-group">
+                <label for="sound-name">按钮名称</label>
+                <input type="text" id="sound-name" placeholder="输入音效名称（如：掌声）">
+            </div>
+            <div class="form-group">
+                <label for="sound-file">音频文件</label>
+                <input type="file" id="sound-file" accept="audio/*">
+                <div class="file-info">支持格式：MP3, WAV, OGG。文件大小不超过2MB。</div>
+            </div>
+            <div class="form-actions">
+                <button class="btn-secondary" onclick="closeAddSoundModal()">取消</button>
+                <button class="btn-primary" onclick="addSound()">添加</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="notification" id="notification">音效添加成功！</div>
+
+    <!-- 预加载示例音频 -->
+    <audio id="applause" src="https://assets.mixkit.co/sfx/preview/mixkit-game-show-answer-bonus-2061.mp3" preload="auto"></audio>
+    <audio id="ding" src="https://assets.mixkit.co/sfx/preview/mixkit-game-show-answer-bonus-2061.mp3" preload="auto"></audio>
+    <audio id="drumroll" src="https://assets.mixkit.co/sfx/preview/mixkit-drum-roll-569.mp3" preload="auto"></audio>
+    <audio id="success" src="https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3" preload="auto"></audio>
+
+    <script>
+        // 当前编辑的音效板（左侧或右侧）
+        let currentSoundboard = null;
+        // 存储音效数据
+        let soundEffects = JSON.parse(localStorage.getItem('soundEffects')) || {
+            left: [],
+            right: []
+        };
+        
+        // 滚动控制变量
+        let autoScrollEnabled = false;
+        let scrollInterval;
+        let scrollPosition = 0;
+        let scrollSpeed = 3;
+        
+        // 初始化页面
+        function initialize() {
+            // 加载两侧的音效按钮
+            loadSoundButtons('left');
+            loadSoundButtons('right');
+            
+            // 加载保存的提词器内容
+            const savedContent = localStorage.getItem('teleprompterContent');
+            if (savedContent) {
+                document.getElementById('prompter-text').innerHTML = savedContent;
+            }
+            
+            // 设置滚动速度
+            const speedInput = document.getElementById('scroll-speed');
+            speedInput.value = localStorage.getItem('scrollSpeed') || 1;
+            scrollSpeed = parseInt(speedInput.value);
+            
+            speedInput.addEventListener('change', function() {
+                scrollSpeed = parseInt(this.value) || 3;
+                localStorage.setItem('scrollSpeed', scrollSpeed);
+                
+                // 如果正在滚动，重新启动滚动以应用新速度
+                if (autoScrollEnabled) {
+                    clearInterval(scrollInterval);
+                    startScrolling();
+                }
+            });
+            
+            // 自动保存提词器内容
+            setInterval(saveTeleprompterContent, 2000);
+            
+            // 添加上传文件类型和大小的验证
+            document.getElementById('sound-file').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                // 检查文件类型
+                const validTypes = ['audio/mp3', 'audio/wav', 'audio/ogg', 'audio/mpeg'];
+                if (!validTypes.includes(file.type)) {
+                    showNotification('请选择有效的音频文件（MP3, WAV, OGG）');
+                    e.target.value = '';
+                    return;
+                }
+                
+                // 检查文件大小（2MB以内）
+                if (file.size > 2 * 1024 * 1024) {
+                    showNotification('文件大小不能超过2MB');
+                    e.target.value = '';
+                    return;
+                }
+            });
+            
+            // 窗口大小调整时重新布局
+            window.addEventListener('resize', adjustLayout);
+            adjustLayout();
+        }
+        
+        // 调整布局以适应屏幕大小
+        function adjustLayout() {
+            const width = window.innerWidth;
+            const teleprompter = document.querySelector('.teleprompter');
+            const soundboards = document.querySelectorAll('.soundboard');
+            const controls = document.querySelector('.teleprompter-controls');
+            
+            if (width < 1000) {
+                teleprompter.style.order = -1;
+                document.querySelector('.container').style.flexWrap = 'wrap';
+                
+                soundboards.forEach(sb => {
+                    sb.style.width = 'calc(50% - 10px)';
+                    sb.style.maxHeight = '250px';
+                });
+                
+                if (width < 600) {
+                    soundboards.forEach(sb => {
+                        sb.style.width = '100%';
+                        sb.style.maxHeight = '200px';
+                    });
+                    
+                    controls.style.gap = '5px';
+                }
+            } else {
+                teleprompter.style.order = '0';
+                document.querySelector('.container').style.flexWrap = 'nowrap';
+                
+                soundboards.forEach(sb => {
+                    sb.style.width = '220px';
+                    sb.style.maxHeight = 'none';
+                });
+            }
+        }
+        
+        // 显示通知
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // 打开添加音效模态框
+        function openAddSoundModal(side) {
+            currentSoundboard = side;
+            document.getElementById('add-sound-modal').style.display = 'flex';
+        }
+        
+        // 关闭添加音效模态框
+        function closeAddSoundModal() {
+            document.getElementById('add-sound-modal').style.display = 'none';
+            // 清空表单
+            document.getElementById('sound-name').value = '';
+            document.getElementById('sound-file').value = '';
+        }
+        
+        // 添加音效
+        function addSound() {
+            const name = document.getElementById('sound-name').value.trim();
+            const fileInput = document.getElementById('sound-file');
+            
+            if (!name) {
+                showNotification('请输入音效名称');
+                return;
+            }
+            
+            if (!fileInput.files.length) {
+                showNotification('请选择音频文件');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                // 将音频数据保存到本地存储
+                const soundData = {
+                    name: name,
+                    data: e.target.result,
+                    type: file.type
+                };
+                
+                soundEffects[currentSoundboard].push(soundData);
+                localStorage.setItem('soundEffects', JSON.stringify(soundEffects));
+                
+                // 重新加载音效按钮
+                loadSoundButtons(currentSoundboard);
+                
+                // 关闭模态框
+                closeAddSoundModal();
+                
+                showNotification('音效添加成功！');
+            };
+            
+            reader.onerror = function() {
+                showNotification('文件读取失败，请重试');
+            };
+            
+            reader.readAsDataURL(file);
+        }
+        
+        // 加载音效按钮
+        function loadSoundButtons(side) {
+            const container = document.getElementById(`${side}-sound-buttons`);
+            // 保留前两个示例按钮
+            const exampleButtons = container.querySelectorAll('[data-audio]');
+            container.innerHTML = '';
+            
+            // 添加回示例按钮
+            exampleButtons.forEach(btn => container.appendChild(btn));
+            
+            // 添加自定义按钮
+            soundEffects[side].forEach((sound, index) => {
+                const button = document.createElement('button');
+                button.className = 'sound-btn';
+                button.textContent = sound.name;
+                button.onclick = function() {
+                    playSound(sound.data);
+                    
+                    // 添加播放中效果
+                    button.classList.add('playing');
+                    setTimeout(() => {
+                        button.classList.remove('playing');
+                    }, 1000);
+                };
+                
+                // 添加长按删除功能
+                let pressTimer;
+                button.addEventListener('mousedown', function() {
+                    pressTimer = window.setTimeout(function() {
+                        if (confirm('确定要删除这个音效吗？')) {
+                            soundEffects[side].splice(index, 1);
+                            localStorage.setItem('soundEffects', JSON.stringify(soundEffects));
+                            loadSoundButtons(side);
+                            showNotification('音效已删除');
+                        }
+                    }, 1000);
+                });
+                
+                button.addEventListener('mouseup', function() {
+                    clearTimeout(pressTimer);
+                });
+                
+                button.addEventListener('mouseleave', function() {
+                    clearTimeout(pressTimer);
+                });
+                
+                container.appendChild(button);
+            });
+        }
+        
+        // 播放音效
+        function playSound(soundData) {
+            const audio = new Audio(soundData);
+            audio.play().catch(e => {
+                console.log('音频播放失败:', e);
+                showNotification('音频播放失败，请检查文件格式');
+            });
+        }
+        
+        // 改变字体大小
+        function changeFontSize(action) {
+            const content = document.getElementById('prompter-text');
+            let currentSize = parseInt(window.getComputedStyle(content).fontSize);
+            
+            if (action === 'increase') {
+                content.style.fontSize = (currentSize + 2) + 'px';
+            } else if (action === 'decrease') {
+                content.style.fontSize = Math.max(14, currentSize - 2) + 'px';
+            }
+            
+            showNotification(`字体大小已调整`);
+        }
+        
+        // 开始滚动
+        function startScrolling() {
+            const content = document.getElementById('prompter-text');
+            
+            scrollInterval = setInterval(() => {
+                scrollPosition += scrollSpeed;
+                
+                // 如果到达底部，回到顶部
+                if (scrollPosition >= content.scrollHeight - content.clientHeight) {
+                    scrollPosition = 0;
+                }
+                
+                content.scrollTop = scrollPosition;
+            }, 50);
+        }
+        
+        // 切换滚动功能
+        function toggleScroll() {
+            const content = document.getElementById('prompter-text');
+            const toggleBtn = document.getElementById('scroll-toggle');
+            
+            autoScrollEnabled = !autoScrollEnabled;
+            
+            if (autoScrollEnabled) {
+                // 记录当前位置
+                scrollPosition = content.scrollTop;
+                
+                // 启用自动滚动
+                startScrolling();
+                toggleBtn.querySelector('span').textContent = '停止滚动';
+                showNotification('自动滚动已开启');
+            } else {
+                // 停止自动滚动
+                clearInterval(scrollInterval);
+                toggleBtn.querySelector('span').textContent = '开启滚动';
+                showNotification('自动滚动已停止');
+            }
+        }
+        
+        // 保存提词器内容
+        function saveTeleprompterContent() {
+            const content = document.getElementById('prompter-text').innerHTML;
+            localStorage.setItem('teleprompterContent', content);
+        }
+        
+        // 重置内容
+        function resetContent() {
+            if (confirm('确定要重置提词器内容吗？所有当前内容将会丢失。')) {
+                document.getElementById('prompter-text').innerHTML = "欢迎使用直播提词器！\n\n您可以在这里编辑您的直播话术。\n\n点击两侧的\"添加音效\"按钮可以上传并添加自定义音效按钮。\n\n您也可以直接修改这段文本内容，输入您的直播脚本。\n\n提示：\n- 长按音效按钮可以删除它\n- 点击下方按钮可以调整字体大小\n- 所有内容会自动保存";
+                localStorage.removeItem('teleprompterContent');
+                showNotification('内容已重置');
+            }
+        }
+        
+        // 页面加载时初始化
+        window.onload = initialize;
+    </script>
+</body>
+</html>
